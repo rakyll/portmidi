@@ -15,54 +15,73 @@
 // Package portmidi provides portmidi bindings.
 package portmidi
 
-// #cgo LDFLAGS: -lportmidi
+// #cgo LDFLAGS: -lportmidi -lporttime
 // #include <stdlib.h>
 // #include <portmidi.h>
+// #include <porttime.h>
 import "C"
 
-import ()
+import (
+	"unsafe"
+)
 
 // Stream represents a portmidi stream.
 type Stream struct {
 	deviceId DeviceId
-	midi     interface{}
-	// TODO: a pointer to the stream ID
+	pmStream *C.PmStream
 }
 
 // Initializes a new input stream.
 func NewInputStream(deviceId DeviceId, bufferSize int64) (stream *Stream, err error) {
-	panic("not implemented")
+	var str *C.PmStream
+	errCode := C.Pm_OpenInput(
+		(*unsafe.Pointer)(unsafe.Pointer(&str)),
+		C.PmDeviceID(deviceId), nil, C.int32_t(bufferSize), nil, nil)
+	if errCode != 0 {
+		return nil, convertToError(errCode)
+	}
+	return &Stream{deviceId: deviceId, pmStream: str}, nil
 }
 
-// Initialized a new output stream.
+// Initializes a new output stream.
 func NewOutputStream(deviceId DeviceId, bufferSize int64, latency int64) (stream *Stream, err error) {
-	panic("not implemented")
+	var str *C.PmStream
+	errCode := C.Pm_OpenOutput(
+		(*unsafe.Pointer)(unsafe.Pointer(&str)),
+		C.PmDeviceID(deviceId), nil, C.int32_t(bufferSize), nil, nil, C.int32_t(latency))
+	if errCode != 0 {
+		return nil, convertToError(errCode)
+	}
+	return &Stream{deviceId: deviceId, pmStream: str}, nil
 }
 
 // Closes the PortMidi stream.
 func (s *Stream) Close() error {
-	if code := Pm_Close(s.midi); code != 0 {
-		return convertToError(code)
+	if s.pmStream == nil {
+		return nil
 	}
-	return nil
+	return convertToError(C.Pm_Close(unsafe.Pointer(s.pmStream)))
 }
 
 // Aborts the PortMidi stream.
 func (s *Stream) Abort() error {
-	if code != Pm_Abort(s.midi); code != 0 {
-		return convertToError(code)
+	if s.pmStream == nil {
+		return nil
 	}
-	return nil
+	return convertToError(C.Pm_Abort(unsafe.Pointer(s.pmStream)))
 }
 
-// Writes the stream.
+// Writes to the stream.
 func (s *Stream) Write(data []byte) error {
 	panic("not implemented")
 }
 
-// Writes
-func (s *Stream) WriteShort(status byte, data1 byte, data2 byte) error {
-	panic("not implemented")
+// Writes a MIDI event of three bytes immediately to the stream.
+func (s *Stream) WriteShort(status int64, data1 int64, data2 int64) error {
+	var buffer C.PmEvent
+	buffer.timestamp = C.PmTimestamp(C.Pt_Time())
+	buffer.message = C.PmMessage((((data2 << 16) & 0xFF0000) | ((data1 << 8) & 0xFF00) | (status & 0xFF)))
+	return convertToError(C.Pm_Write(unsafe.Pointer(s.pmStream), &buffer, 1))
 }
 
 func (s *Stream) WriteSysEx(when Timestamp, msg string) error {
