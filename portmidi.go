@@ -15,7 +15,7 @@
 // Package portmidi provides PortMidi bindings.
 package portmidi
 
-// #cgo LDFLAGS: -lportmidi
+// #cgo LDFLAGS: -lportmidi -lporttime
 // #include <stdlib.h>
 // #include <portmidi.h>
 // #include <porttime.h>
@@ -23,21 +23,6 @@ import "C"
 
 import (
 	"errors"
-)
-
-const (
-	CodeNoError         = 0
-	CodeNoData          = 0
-	CodeGotData         = 1
-	CodeHostError       = -10000
-	CodeInvalidDeviceId = iota
-	CodeInsufficientMemory
-	CodeBufferTooSmall
-	CodeBuffetOverflow
-	CodeBadPtr
-	CodeBadData
-	CodeInternalError
-	CodeBufferMaxSize
 )
 
 var (
@@ -52,6 +37,19 @@ var (
 	ErrInternalError      = errors.New("portmidi: internal error")
 	ErrBufferMaxSize      = errors.New("portmidi: buffer max size")
 )
+
+var errorMap map[int]error = map[int]error{
+	0:      nil,
+	-10000: ErrHost,
+	1:      ErrInvalidDeviceId,
+	2:      ErrInsufficientMemory,
+	3:      ErrBufferTooSmall,
+	4:      ErrBufferOverflow,
+	5:      ErrBadPtr,
+	6:      ErrBadData,
+	7:      ErrInternalError,
+	8:      ErrBufferMaxSize,
+}
 
 type DeviceId int
 
@@ -111,6 +109,6 @@ func Time() Timestamp {
 	return Timestamp(C.Pt_Time())
 }
 
-func convertToError(pmError C.PmError) error {
-	panic("not implemented")
+func convertToError(code C.PmError) error {
+	return errorMap[int(code)]
 }
