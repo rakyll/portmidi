@@ -7,7 +7,7 @@ In order to start, go get this repository:
 ~~~ go
 go get github.com/rakyll/portmidi
 ~~~
-`libportmidi` is required as a development dependency.
+`libportmidi` is required as a dependency.
 
 ~~~ go
 import (
