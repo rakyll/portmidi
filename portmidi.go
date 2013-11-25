@@ -74,6 +74,7 @@ func Initialize() error {
 
 // Terminates and cleans up the midi streams.
 func Terminate() error {
+	C.Pt_Stop()
 	return convertToError(C.Pm_Terminate())
 }
 
