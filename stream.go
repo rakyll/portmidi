@@ -22,6 +22,7 @@ package portmidi
 import "C"
 
 import (
+	"errors"
 	"unsafe"
 )
 
@@ -29,6 +30,15 @@ import (
 type Stream struct {
 	deviceId DeviceId
 	pmStream *C.PmStream
+}
+
+// Event represents a MIDI event
+type Event struct {
+	Timestamp Timestamp
+	Status    int64
+	Data1     int64
+	Data2     int64
+	Data3     int64
 }
 
 // Initializes a new input stream.
@@ -72,7 +82,7 @@ func (s *Stream) Abort() error {
 }
 
 // Writes to the stream.
-func (s *Stream) Write(data []byte) error {
+func (s *Stream) Write(data []int64) error {
 	panic("not implemented")
 }
 
@@ -92,8 +102,25 @@ func (s *Stream) SetChannelMask(mask int) error {
 	panic("not implemented")
 }
 
-func (s *Stream) Poll() error {
-	panic("not implemented")
+func (s *Stream) Read(max int) (events []*Event, err error) {
+	if max > 1024 {
+		return nil, errors.New("portmidi: Max event buffer size is 1024.")
+	}
+	if max < 1 {
+		return nil, errors.New("portmidi: Min event buffer size is 1.")
+	}
+	buffer := make([]C.PmEvent, max)
+	numEvents := C.Pm_Read(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(max))
+	events = make([]*Event, numEvents)
+	for i := 0; i < int(numEvents); i++ {
+		events[i] = &Event{
+			Timestamp: Timestamp(buffer[i].timestamp),
+			Status:    (int64(buffer[i].message) >> 8) & 0xFF,
+			Data1:     (int64(buffer[i].message) >> 16) & 0xFF,
+			Data2:     (int64(buffer[i].message) >> 24) & 0xFF,
+		}
+	}
+	return
 }
 
 // TODO: add bindings for Pm_Read and Pm_SetFilter
