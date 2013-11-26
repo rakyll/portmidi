@@ -38,7 +38,6 @@ type Event struct {
 	Status    int64
 	Data1     int64
 	Data2     int64
-	Data3     int64
 }
 
 // Initializes a new input stream.
@@ -104,10 +103,10 @@ func (s *Stream) SetChannelMask(mask int) error {
 
 func (s *Stream) Read(max int) (events []*Event, err error) {
 	if max > 1024 {
-		return nil, errors.New("portmidi: Max event buffer size is 1024.")
+		return nil, errors.New("portmidi: max event buffer size is 1024")
 	}
 	if max < 1 {
-		return nil, errors.New("portmidi: Min event buffer size is 1.")
+		return nil, errors.New("portmidi: min event buffer size is 1")
 	}
 	buffer := make([]C.PmEvent, max)
 	numEvents := C.Pm_Read(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(max))
