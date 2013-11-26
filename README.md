@@ -1,35 +1,61 @@
 # portmidi
-
-This package contains Go bindings for PortMidi.
-
-## Usage
-In order to start, go get this repository:
+Want to output to an MIDI device or listen your MIDI device as an input? This
+package contains Go bindings for PortMidi. `libportmidi` is required as a
+dependency. In order to start, go get this repository:
 ~~~ go
 go get github.com/rakyll/portmidi
 ~~~
-`libportmidi` is required as a dependency.
+~~~ go
+import "github.com/rakyll/portmidi"
+~~~
+
+## Usage
+
+### Initialize
+~~~ go
+portmidi.Initialize()
+~~~
+
+### About MIDI Devices
 
 ~~~ go
-import (
-    "github.com/rakyll/portmidi"
-)
+portmidi.CountDevices() // returns the number of MIDI devices
+portmidi.GetDeviceInfo(deviceId) // returns info about a MIDI device
+portmidi.GetDefaultInputDeviceId() // returns the ID of the system default input
+portmidi.GetDefaultOutputDeviceId() // returns the ID of the system default output
+~~~
 
-portmidi.Initialize()
-stream, _ := portmidi.NewOutputStream(deviceId, 1024, 0)
+### Write to a MIDI Device
+
+~~~ go
+out, err := portmidi.NewOutputStream(deviceId, 1024, 0)
 
 // note on events to play C# minor chord
-stream.WriteShort(0x90, 60, 100)
-stream.WriteShort(0x90, 64, 100)
-stream.WriteShort(0x90, 67, 100)
+out.WriteShort(0x90, 60, 100)
+out.WriteShort(0x90, 64, 100)
+out.WriteShort(0x90, 67, 100)
 
+// notes will be sustained for 2 seconds
 time.Sleep(2 * time.Second)
 
 // note off events
-stream.WriteShort(0x80, 60, 100)
-stream.WriteShort(0x80, 64, 100)
-stream.WriteShort(0x80, 67, 100)
+out.WriteShort(0x80, 60, 100)
+out.WriteShort(0x80, 64, 100)
+out.WriteShort(0x80, 67, 100)
 
-stream.Close()
+out.Close()
+~~~
+
+### Read from a MIDI Device
+~~~ go
+in, err := portmidi.NewInputStream(deviceId, 1024)
+events, err := in.Read(1024)
+in.Close()
+~~~
+
+### Cleanup
+Cleanup your input and output streams once you're done. Likely to be called on graceful termination.
+~~~ go
 portmidi.Terminate()
 ~~~
     
