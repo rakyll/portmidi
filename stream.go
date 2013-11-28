@@ -26,13 +26,23 @@ import (
 	"unsafe"
 )
 
+const (
+	minEventBufferSize = 1
+	maxEventBufferSize = 1024
+)
+
+var (
+	errMaxBuffer = errors.New("portmidi: max event buffer size is 1024")
+	errMinBuffer = errors.New("portmidi: min event buffer size is 1")
+)
+
 // Stream represents a portmidi stream.
 type Stream struct {
 	deviceId DeviceId
 	pmStream *C.PmStream
 }
 
-// Event represents a MIDI event
+// Event represents a MIDI event.
 type Event struct {
 	Timestamp Timestamp
 	Status    int64
@@ -81,16 +91,30 @@ func (s *Stream) Abort() error {
 }
 
 // Writes to the stream.
-func (s *Stream) Write(data []int64) error {
-	panic("not implemented")
+func (s *Stream) Write(events []Event) error {
+	size := len(events)
+	if size > maxEventBufferSize {
+		return errMaxBuffer
+	}
+	var buffer []C.PmEvent = make([]C.PmEvent, size)
+	for i, evt := range events {
+		var event C.PmEvent
+		event.timestamp = C.PmTimestamp(evt.Timestamp)
+		event.message = C.PmMessage((((evt.Data2 << 16) & 0xFF0000) | ((evt.Data1 << 8) & 0xFF00) | (evt.Status & 0xFF)))
+		buffer[i] = event
+	}
+	return convertToError(C.Pm_Write(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(size)))
 }
 
 // Writes a MIDI event of three bytes immediately to the stream.
 func (s *Stream) WriteShort(status int64, data1 int64, data2 int64) error {
-	var buffer C.PmEvent
-	buffer.timestamp = C.PmTimestamp(C.Pt_Time())
-	buffer.message = C.PmMessage((((data2 << 16) & 0xFF0000) | ((data1 << 8) & 0xFF00) | (status & 0xFF)))
-	return convertToError(C.Pm_Write(unsafe.Pointer(s.pmStream), &buffer, 1))
+	evt := Event{
+		Timestamp: Timestamp(C.Pt_Time()),
+		Status:    status,
+		Data1:     data1,
+		Data2:     data2,
+	}
+	return s.Write([]Event{evt})
 }
 
 func (s *Stream) WriteSysEx(when Timestamp, msg string) error {
@@ -101,18 +125,18 @@ func (s *Stream) SetChannelMask(mask int) error {
 	panic("not implemented")
 }
 
-func (s *Stream) Read(max int) (events []*Event, err error) {
-	if max > 1024 {
-		return nil, errors.New("portmidi: max event buffer size is 1024")
+func (s *Stream) Read(max int) (events []Event, err error) {
+	if max > maxEventBufferSize {
+		return nil, errMaxBuffer
 	}
-	if max < 1 {
-		return nil, errors.New("portmidi: min event buffer size is 1")
+	if max < minEventBufferSize {
+		return nil, errMinBuffer
 	}
 	buffer := make([]C.PmEvent, max)
 	numEvents := C.Pm_Read(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(max))
-	events = make([]*Event, numEvents)
+	events = make([]Event, numEvents)
 	for i := 0; i < int(numEvents); i++ {
-		events[i] = &Event{
+		events[i] = Event{
 			Timestamp: Timestamp(buffer[i].timestamp),
 			Status:    (int64(buffer[i].message) >> 8) & 0xFF,
 			Data1:     (int64(buffer[i].message) >> 16) & 0xFF,
@@ -122,4 +146,4 @@ func (s *Stream) Read(max int) (events []*Event, err error) {
 	return
 }
 
-// TODO: add bindings for Pm_Read and Pm_SetFilter
+// TODO: add bindings for Pm_SetFilter
