@@ -36,11 +36,8 @@ var (
 	errMinBuffer = errors.New("portmidi: min event buffer size is 1")
 )
 
-// Stream represents a portmidi stream.
-type Stream struct {
-	deviceId DeviceId
-	pmStream *C.PmStream
-}
+// Channel represent a MIDI channel. It should be between 1-16.
+type Channel int
 
 // Event represents a MIDI event.
 type Event struct {
@@ -48,6 +45,12 @@ type Event struct {
 	Status    int64
 	Data1     int64
 	Data2     int64
+}
+
+// Stream represents a portmidi stream.
+type Stream struct {
+	deviceId DeviceId
+	pmStream *C.PmStream
 }
 
 // Initializes a new input stream.
@@ -122,8 +125,12 @@ func (s *Stream) WriteSysEx(when Timestamp, msg string) error {
 	return convertToError(C.Pm_WriteSysEx(unsafe.Pointer(s.pmStream), C.PmTimestamp(when), nil))
 }
 
+// Filters incoming stream based on channel.
+// In order to filter from more than a single channel, or multiple channels.
+// s.SetChannelMask(Channel(1) | Channel(10)) will both filter input
+// from channel 1 and 10.
 func (s *Stream) SetChannelMask(mask int) error {
-	panic("not implemented")
+	return convertToError(C.Pm_SetChannelMask(unsafe.Pointer(s.pmStream), C.int(mask)))
 }
 
 // Reads from the input stream, the max number events to be read are
@@ -149,4 +156,4 @@ func (s *Stream) Read(max int) (events []Event, err error) {
 	return
 }
 
-// TODO: add bindings for Pm_SetFilter
+// TODO: add bindings for Pm_SetFilter and Pm_Poll

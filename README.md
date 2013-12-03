@@ -50,6 +50,12 @@ out.Close()
 ~~~ go
 in, err := portmidi.NewInputStream(deviceId, 1024)
 events, err := in.Read(1024)
+
+// alternatively you can filter the input to listen
+// only a particular set of channels
+in.SetChannelMask(portmidi.Channel(1) | portmidi.Channel.(2))
+in.Read(1024) // will retrieve events from channel 1 and 2
+
 in.Close()
 ~~~
 
