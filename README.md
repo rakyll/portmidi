@@ -56,6 +56,10 @@ events, err := in.Read(1024)
 in.SetChannelMask(portmidi.Channel(1) | portmidi.Channel.(2))
 in.Read(1024) // will retrieve events from channel 1 and 2
 
+// or alternatively listen events
+ch := in.Listen()
+event := <-ch
+
 in.Close()
 ~~~
 

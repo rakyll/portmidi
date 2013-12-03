@@ -23,6 +23,7 @@ import "C"
 
 import (
 	"errors"
+	"time"
 	"unsafe"
 )
 
@@ -154,6 +155,29 @@ func (s *Stream) Read(max int) (events []Event, err error) {
 		}
 	}
 	return
+}
+
+// Listen input stream for MIDI events.
+func (s *Stream) Listen() <-chan Event {
+	ch := make(chan Event)
+	go func(s *Stream, ch chan Event) {
+		for {
+			// sleep for a while before the new polling tick,
+			// otherwise operation is too intensive and blocking
+			time.Sleep(10 * time.Millisecond)
+			events, err := s.Read(1024)
+			// Note: It's not very reasonable to push sliced data into
+			// a channel, several perf penalities there are.
+			// This function is added as a handy utility.
+			if err != nil {
+				continue
+			}
+			for i := range events {
+				ch <- events[i]
+			}
+		}
+	}(s, ch)
+	return ch
 }
 
 // TODO: add bindings for Pm_SetFilter and Pm_Poll
