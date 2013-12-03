@@ -74,7 +74,7 @@ func NewOutputStream(deviceId DeviceId, bufferSize int64, latency int64) (stream
 	return &Stream{deviceId: deviceId, pmStream: str}, nil
 }
 
-// Closes the PortMidi stream.
+// Closes the MIDI stream.
 func (s *Stream) Close() error {
 	if s.pmStream == nil {
 		return nil
@@ -82,7 +82,7 @@ func (s *Stream) Close() error {
 	return convertToError(C.Pm_Close(unsafe.Pointer(s.pmStream)))
 }
 
-// Aborts the PortMidi stream.
+// Aborts the MIDI stream.
 func (s *Stream) Abort() error {
 	if s.pmStream == nil {
 		return nil
@@ -90,7 +90,7 @@ func (s *Stream) Abort() error {
 	return convertToError(C.Pm_Abort(unsafe.Pointer(s.pmStream)))
 }
 
-// Writes to the stream.
+// Writes a buffer of MIDI events to the output stream.
 func (s *Stream) Write(events []Event) error {
 	size := len(events)
 	if size > maxEventBufferSize {
@@ -106,7 +106,7 @@ func (s *Stream) Write(events []Event) error {
 	return convertToError(C.Pm_Write(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(size)))
 }
 
-// Writes a MIDI event of three bytes immediately to the stream.
+// Writes a MIDI event of three bytes immediately to the output stream.
 func (s *Stream) WriteShort(status int64, data1 int64, data2 int64) error {
 	evt := Event{
 		Timestamp: Timestamp(C.Pt_Time()),
@@ -125,6 +125,8 @@ func (s *Stream) SetChannelMask(mask int) error {
 	panic("not implemented")
 }
 
+// Reads from the input stream, the max number events to be read are
+// determined by max.
 func (s *Stream) Read(max int) (events []Event, err error) {
 	if max > maxEventBufferSize {
 		return nil, errMaxBuffer
