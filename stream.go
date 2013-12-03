@@ -117,8 +117,9 @@ func (s *Stream) WriteShort(status int64, data1 int64, data2 int64) error {
 	return s.Write([]Event{evt})
 }
 
+// Writes a system exclusive MIDI message to the output stream.
 func (s *Stream) WriteSysEx(when Timestamp, msg string) error {
-	panic("not implemented")
+	return convertToError(C.Pm_WriteSysEx(unsafe.Pointer(s.pmStream), C.PmTimestamp(when), nil))
 }
 
 func (s *Stream) SetChannelMask(mask int) error {
