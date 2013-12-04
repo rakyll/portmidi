@@ -2,11 +2,8 @@
 Want to output to an MIDI device or listen your MIDI device as an input? This
 package contains Go bindings for PortMidi. `libportmidi` is required as a
 dependency. In order to start, go get this repository:
-~~~ go
+~~~ sh
 go get github.com/rakyll/portmidi
-~~~
-~~~ go
-import "github.com/rakyll/portmidi"
 ~~~
 
 ## Usage
