@@ -149,9 +149,9 @@ func (s *Stream) Read(max int) (events []Event, err error) {
 	for i := 0; i < int(numEvents); i++ {
 		events[i] = Event{
 			Timestamp: Timestamp(buffer[i].timestamp),
-			Status:    (int64(buffer[i].message) >> 8) & 0xFF,
-			Data1:     (int64(buffer[i].message) >> 16) & 0xFF,
-			Data2:     (int64(buffer[i].message) >> 24) & 0xFF,
+			Status:    int64(buffer[i].message) & 0xFF,
+			Data1:     (int64(buffer[i].message) >> 8) & 0xFF,
+			Data2:     (int64(buffer[i].message) >> 16) & 0xFF,
 		}
 	}
 	return
