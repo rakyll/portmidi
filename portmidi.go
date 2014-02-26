@@ -26,6 +26,7 @@ import (
 )
 
 var (
+	ErrUnknown            = errors.New("portmidi: unknown error")
 	ErrNoData             = errors.New("portmidi: no data")
 	ErrHost               = errors.New("portmidi: host error")
 	ErrInvalidDeviceId    = errors.New("portmidi: invalid device id")
@@ -111,5 +112,9 @@ func Time() Timestamp {
 }
 
 func convertToError(code C.PmError) error {
-	return errorMap[int(code)]
+	err, ok := errorMap[int(code)]
+	if !ok && code != 0 {
+		return ErrUnknown
+	}
+	return err
 }
