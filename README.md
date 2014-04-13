@@ -1,10 +1,19 @@
 # portmidi
 Want to output to an MIDI device or listen your MIDI device as an input? This
-package contains Go bindings for PortMidi. `libportmidi` is required as a
-dependency. In order to start, go get this repository:
+package contains Go bindings for PortMidi. `libportmidi` (v. 217) is required as a dependency, it's available via apt-get and brew.
+
+~~~ sh
+apt-get install libportmidi-dev
+# or
+brew install portmidi
+~~~
+
+In order to start, go get this repository:
 ~~~ sh
 go get github.com/rakyll/portmidi
 ~~~
+Or, alternatively you can download the source and build it by yourself. See
+the instructions on [PortMidi homepage](http://portmedia.sourceforge.net/portmidi/).
 
 ## Usage
 
