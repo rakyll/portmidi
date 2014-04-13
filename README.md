@@ -8,12 +8,13 @@ apt-get install libportmidi-dev
 brew install portmidi
 ~~~
 
+Or, alternatively you can download the source and build it by yourself. See
+the instructions on [PortMidi homepage](http://portmedia.sourceforge.net/portmidi/).
+
 In order to start, go get this repository:
 ~~~ sh
 go get github.com/rakyll/portmidi
 ~~~
-Or, alternatively you can download the source and build it by yourself. See
-the instructions on [PortMidi homepage](http://portmedia.sourceforge.net/portmidi/).
 
 ## Usage
 
