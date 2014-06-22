@@ -123,7 +123,10 @@ func (s *Stream) WriteShort(status int64, data1 int64, data2 int64) error {
 
 // Writes a system exclusive MIDI message to the output stream.
 func (s *Stream) WriteSysEx(when Timestamp, msg string) error {
-	return convertToError(C.Pm_WriteSysEx(unsafe.Pointer(s.pmStream), C.PmTimestamp(when), nil))
+	msgCstr := C.CString(msg)
+	defer C.free(unsafe.Pointer(msgCstr))
+	msgUcstr := (*C.uchar)(unsafe.Pointer(msgCstr))
+	return convertToError(C.Pm_WriteSysEx(unsafe.Pointer(s.pmStream), C.PmTimestamp(when), msgUcstr))
 }
 
 // Filters incoming stream based on channel.
