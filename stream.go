@@ -19,7 +19,6 @@ package portmidi
 // #include <stdlib.h>
 // #include <portmidi.h>
 // #include <porttime.h>
-
 import "C"
 
 import (
