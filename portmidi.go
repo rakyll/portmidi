@@ -19,6 +19,8 @@ package portmidi
 // #include <stdlib.h>
 // #include <portmidi.h>
 // #include <porttime.h>
+// #define SYSEX_BUFFER_SIZE 4104
+// #define PACKET_BUFFER_SIZE 4104
 import "C"
 
 import (

@@ -19,21 +19,26 @@ package portmidi
 // #include <stdlib.h>
 // #include <portmidi.h>
 // #include <porttime.h>
+// #define SYSEX_BUFFER_SIZE 4104
+// #define PACKET_BUFFER_SIZE 4104
 import "C"
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
+	"fmt"
 	"time"
 	"unsafe"
 )
 
 const (
 	minEventBufferSize = 1
-	maxEventBufferSize = 1024
+	maxEventBufferSize = 5000
 )
 
 var (
-	errMaxBuffer = errors.New("portmidi: max event buffer size is 1024")
+	errMaxBuffer = errors.New("portmidi: max event buffer size is 5000")
 	errMinBuffer = errors.New("portmidi: min event buffer size is 1")
 )
 
@@ -43,10 +48,11 @@ type Channel int
 // Event represents a MIDI event.
 type Event struct {
 	Timestamp Timestamp
-	Status    int64
-	Data1     int64
-	Data2     int64
+	Message   Message
 }
+
+// Message represents a 4 byte message
+type Message []byte
 
 // Stream represents a portmidi stream.
 type Stream struct {
@@ -104,19 +110,21 @@ func (s *Stream) Write(events []Event) error {
 	for i, evt := range events {
 		var event C.PmEvent
 		event.timestamp = C.PmTimestamp(evt.Timestamp)
-		event.message = C.PmMessage((((evt.Data2 << 16) & 0xFF0000) | ((evt.Data1 << 8) & 0xFF00) | (evt.Status & 0xFF)))
+		event.message = C.PmMessage(((int32(evt.Message[2]) << 16) & 0xFF0000) | ((int32(evt.Message[1]) << 8) & 0xFF00) | (int32(evt.Message[0]) & 0xFF))
 		buffer[i] = event
 	}
 	return convertToError(C.Pm_Write(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(size)))
 }
 
 // Writes a MIDI event of three bytes immediately to the output stream.
-func (s *Stream) WriteShort(status int64, data1 int64, data2 int64) error {
+func (s *Stream) WriteShort(status byte, data1 byte, data2 byte) error {
+	message := make([]byte, 4)
+	message[0] = status
+	message[1] = data1
+	message[2] = data2
 	evt := Event{
 		Timestamp: Timestamp(C.Pt_Time()),
-		Status:    status,
-		Data1:     data1,
-		Data2:     data2,
+		Message:   message,
 	}
 	return s.Write([]Event{evt})
 }
@@ -149,12 +157,18 @@ func (s *Stream) Read(max int) (events []Event, err error) {
 	buffer := make([]C.PmEvent, max)
 	numEvents := C.Pm_Read(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(max))
 	events = make([]Event, numEvents)
+
 	for i := 0; i < int(numEvents); i++ {
+
+		buf := new(bytes.Buffer)
+		err := binary.Write(buf, binary.LittleEndian, buffer[i].message)
+		if err != nil {
+			fmt.Println("binary.Write failed:", err)
+		}
+
 		events[i] = Event{
 			Timestamp: Timestamp(buffer[i].timestamp),
-			Status:    int64(buffer[i].message) & 0xFF,
-			Data1:     (int64(buffer[i].message) >> 8) & 0xFF,
-			Data2:     (int64(buffer[i].message) >> 16) & 0xFF,
+			Message:   (Message)(buf.Bytes()),
 		}
 	}
 	return
@@ -181,6 +195,26 @@ func (s *Stream) Listen() <-chan Event {
 		}
 	}(s, ch)
 	return ch
+}
+
+func (m Message) Status() byte {
+	status := m[0]
+	return status
+}
+
+func (m Message) Data1() byte {
+	data1 := m[1]
+	return data1
+}
+
+func (m Message) Data2() byte {
+	data2 := m[2]
+	return data2
+}
+
+func (m Message) prep() []byte {
+	message := ([]byte)(m)
+	return message
 }
 
 // TODO: add bindings for Pm_SetFilter and Pm_Poll
