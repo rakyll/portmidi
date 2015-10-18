@@ -19,26 +19,24 @@ package portmidi
 // #include <stdlib.h>
 // #include <portmidi.h>
 // #include <porttime.h>
-// #define SYSEX_BUFFER_SIZE 4104
-// #define PACKET_BUFFER_SIZE 4104
+
 import "C"
 
 import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"time"
 	"unsafe"
 )
 
 const (
 	minEventBufferSize = 1
-	maxEventBufferSize = 5000
+	maxEventBufferSize = 1024
 )
 
 var (
-	errMaxBuffer = errors.New("portmidi: max event buffer size is 5000")
+	errMaxBuffer = errors.New("portmidi: max event buffer size is 1024")
 	errMinBuffer = errors.New("portmidi: min event buffer size is 1")
 )
 
@@ -163,7 +161,7 @@ func (s *Stream) Read(max int) (events []Event, err error) {
 		buf := new(bytes.Buffer)
 		err := binary.Write(buf, binary.LittleEndian, buffer[i].message)
 		if err != nil {
-			fmt.Println("binary.Write failed:", err)
+			return nil, err
 		}
 
 		events[i] = Event{
