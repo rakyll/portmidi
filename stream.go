@@ -22,7 +22,9 @@ package portmidi
 import "C"
 
 import (
+	"encoding/hex"
 	"errors"
+	"strings"
 	"time"
 	"unsafe"
 )
@@ -121,9 +123,21 @@ func (s *Stream) WriteShort(status int64, data1 int64, data2 int64) error {
 	return s.Write([]Event{evt})
 }
 
-// Writes a system exclusive MIDI message to the output stream.
+// WriteSysExBytes writes a system exclusive MIDI message given as a []byte to the output stream.
+func (s *Stream) WriteSysExBytes(when Timestamp, msg []byte) error {
+	return convertToError(C.Pm_WriteSysEx(unsafe.Pointer(s.pmStream), C.PmTimestamp(when), (*C.uchar)(unsafe.Pointer(&msg[0]))))
+}
+
+// WriteSysEx writes a system exclusive MIDI message given as a string of hexadecimal characters to
+// the output stream. The string must only consist of hex digits (0-9A-F) and optional spaces. This
+// function is case-insenstive.
 func (s *Stream) WriteSysEx(when Timestamp, msg string) error {
-	return convertToError(C.Pm_WriteSysEx(unsafe.Pointer(s.pmStream), C.PmTimestamp(when), nil))
+	buf, err := hex.DecodeString(strings.Replace(msg, " ", "", -1))
+	if err != nil {
+		return err
+	}
+
+	return s.WriteSysExBytes(when, buf)
 }
 
 // Filters incoming stream based on channel.
@@ -155,6 +169,26 @@ func (s *Stream) Read(max int) (events []Event, err error) {
 		}
 	}
 	return
+}
+
+// ReadSysExBytes reads 4*max sysex bytes from the input stream.
+func (s *Stream) ReadSysExBytes(max int) ([]byte, error) {
+	if max > maxEventBufferSize {
+		return nil, errMaxBuffer
+	}
+	if max < minEventBufferSize {
+		return nil, errMinBuffer
+	}
+	buffer := make([]C.PmEvent, max)
+	numEvents := C.Pm_Read(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(max))
+	msg := make([]byte, 4*numEvents)
+	for i := 0; i < int(numEvents); i++ {
+		msg[4*i+0] = byte(buffer[i].message & 0xFF)
+		msg[4*i+1] = byte((buffer[i].message >> 8) & 0xFF)
+		msg[4*i+2] = byte((buffer[i].message >> 16) & 0xFF)
+		msg[4*i+3] = byte((buffer[i].message >> 24) & 0xFF)
+	}
+	return msg, nil
 }
 
 // Listen input stream for MIDI events.
