@@ -35,8 +35,10 @@ const (
 )
 
 var (
-	errMaxBuffer = errors.New("portmidi: max event buffer size is 1024")
-	errMinBuffer = errors.New("portmidi: min event buffer size is 1")
+	ErrMaxBuffer         = errors.New("portmidi: max event buffer size is 1024")
+	ErrMinBuffer         = errors.New("portmidi: min event buffer size is 1")
+	ErrInputUnavailable  = errors.New("portmidi: input is unavailable")
+	ErrOutputUnavailable = errors.New("portmidi: output is unavailable")
 )
 
 // Channel represent a MIDI channel. It should be between 1-16.
@@ -65,6 +67,9 @@ func NewInputStream(deviceId DeviceId, bufferSize int64) (stream *Stream, err er
 	if errCode != 0 {
 		return nil, convertToError(errCode)
 	}
+	if info := GetDeviceInfo(deviceId); !info.IsInputAvailable {
+		return nil, ErrInputUnavailable
+	}
 	return &Stream{deviceId: deviceId, pmStream: str}, nil
 }
 
@@ -76,6 +81,9 @@ func NewOutputStream(deviceId DeviceId, bufferSize int64, latency int64) (stream
 		C.PmDeviceID(deviceId), nil, C.int32_t(bufferSize), nil, nil, C.int32_t(latency))
 	if errCode != 0 {
 		return nil, convertToError(errCode)
+	}
+	if info := GetDeviceInfo(deviceId); !info.IsOutputAvailable {
+		return nil, ErrOutputUnavailable
 	}
 	return &Stream{deviceId: deviceId, pmStream: str}, nil
 }
@@ -100,7 +108,7 @@ func (s *Stream) Abort() error {
 func (s *Stream) Write(events []Event) error {
 	size := len(events)
 	if size > maxEventBufferSize {
-		return errMaxBuffer
+		return ErrMaxBuffer
 	}
 	var buffer []C.PmEvent = make([]C.PmEvent, size)
 	for i, evt := range events {
@@ -152,10 +160,10 @@ func (s *Stream) SetChannelMask(mask int) error {
 // determined by max.
 func (s *Stream) Read(max int) (events []Event, err error) {
 	if max > maxEventBufferSize {
-		return nil, errMaxBuffer
+		return nil, ErrMaxBuffer
 	}
 	if max < minEventBufferSize {
-		return nil, errMinBuffer
+		return nil, ErrMinBuffer
 	}
 	buffer := make([]C.PmEvent, max)
 	numEvents := C.Pm_Read(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(max))
@@ -174,10 +182,10 @@ func (s *Stream) Read(max int) (events []Event, err error) {
 // ReadSysExBytes reads 4*max sysex bytes from the input stream.
 func (s *Stream) ReadSysExBytes(max int) ([]byte, error) {
 	if max > maxEventBufferSize {
-		return nil, errMaxBuffer
+		return nil, ErrMaxBuffer
 	}
 	if max < minEventBufferSize {
-		return nil, errMinBuffer
+		return nil, ErrMinBuffer
 	}
 	buffer := make([]C.PmEvent, max)
 	numEvents := C.Pm_Read(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(max))
