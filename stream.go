@@ -219,18 +219,15 @@ func (s *Stream) Listen() <-chan Event {
 }
 
 func (e Event) Status() byte {
-	status := e.Message[0]
-	return status
+	return e.Message[0]
 }
 
 func (e Event) Data1() byte {
-	data1 := e.Message[1]
-	return data1
+	return e.Message[1]
 }
 
 func (e Event) Data2() byte {
-	data2 := e.Message[2]
-	return data2
+	return e.Message[2]
 }
 
 // TODO: add bindings for Pm_SetFilter and Pm_Poll
