@@ -45,11 +45,8 @@ type Channel int
 // Event represents a MIDI event.
 type Event struct {
 	Timestamp Timestamp
-	Message   Message
+	Message   []byte
 }
-
-// Message represents a 4 byte message
-type Message []byte
 
 // Stream represents a portmidi stream.
 type Stream struct {
@@ -172,7 +169,7 @@ func (s *Stream) Read(max int) (events []Event, err error) {
 
 		events[i] = Event{
 			Timestamp: Timestamp(buffer[i].timestamp),
-			Message:   (Message)(buf.Bytes()),
+			Message:   buf.Bytes(),
 		}
 	}
 	return
@@ -221,24 +218,19 @@ func (s *Stream) Listen() <-chan Event {
 	return ch
 }
 
-func (m Message) Status() byte {
-	status := m[0]
+func (e Event) Status() byte {
+	status := e.Message[0]
 	return status
 }
 
-func (m Message) Data1() byte {
-	data1 := m[1]
+func (e Event) Data1() byte {
+	data1 := e.Message[1]
 	return data1
 }
 
-func (m Message) Data2() byte {
-	data2 := m[2]
+func (e Event) Data2() byte {
+	data2 := e.Message[2]
 	return data2
-}
-
-func (m Message) prep() []byte {
-	message := ([]byte)(m)
-	return message
 }
 
 // TODO: add bindings for Pm_SetFilter and Pm_Poll
