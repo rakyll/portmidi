@@ -160,7 +160,6 @@ func (s *Stream) Read(max int) (events []Event, err error) {
 	events = make([]Event, numEvents)
 
 	for i := 0; i < int(numEvents); i++ {
-
 		buf := new(bytes.Buffer)
 		err := binary.Write(buf, binary.LittleEndian, buffer[i].message)
 		if err != nil {
