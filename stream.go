@@ -22,9 +22,9 @@ package portmidi
 import "C"
 
 import (
-	"encoding/hex"
+	"bytes"
+	"encoding/binary"
 	"errors"
-	"strings"
 	"time"
 	"unsafe"
 )
@@ -45,9 +45,7 @@ type Channel int
 // Event represents a MIDI event.
 type Event struct {
 	Timestamp Timestamp
-	Status    int64
-	Data1     int64
-	Data2     int64
+	Message   []byte
 }
 
 // Stream represents a portmidi stream.
@@ -106,19 +104,21 @@ func (s *Stream) Write(events []Event) error {
 	for i, evt := range events {
 		var event C.PmEvent
 		event.timestamp = C.PmTimestamp(evt.Timestamp)
-		event.message = C.PmMessage((((evt.Data2 << 16) & 0xFF0000) | ((evt.Data1 << 8) & 0xFF00) | (evt.Status & 0xFF)))
+		event.message = C.PmMessage(((int32(evt.Message[2]) << 16) & 0xFF0000) | ((int32(evt.Message[1]) << 8) & 0xFF00) | (int32(evt.Message[0]) & 0xFF))
 		buffer[i] = event
 	}
 	return convertToError(C.Pm_Write(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(size)))
 }
 
 // Writes a MIDI event of three bytes immediately to the output stream.
-func (s *Stream) WriteShort(status int64, data1 int64, data2 int64) error {
+func (s *Stream) WriteShort(status byte, data1 byte, data2 byte) error {
+	message := make([]byte, 4)
+	message[0] = status
+	message[1] = data1
+	message[2] = data2
 	evt := Event{
 		Timestamp: Timestamp(C.Pt_Time()),
-		Status:    status,
-		Data1:     data1,
-		Data2:     data2,
+		Message:   message,
 	}
 	return s.Write([]Event{evt})
 }
@@ -132,12 +132,10 @@ func (s *Stream) WriteSysExBytes(when Timestamp, msg []byte) error {
 // the output stream. The string must only consist of hex digits (0-9A-F) and optional spaces. This
 // function is case-insenstive.
 func (s *Stream) WriteSysEx(when Timestamp, msg string) error {
-	buf, err := hex.DecodeString(strings.Replace(msg, " ", "", -1))
-	if err != nil {
-		return err
-	}
-
-	return s.WriteSysExBytes(when, buf)
+	msgCstr := C.CString(msg)
+	defer C.free(unsafe.Pointer(msgCstr))
+	msgUcstr := (*C.uchar)(unsafe.Pointer(msgCstr))
+	return convertToError(C.Pm_WriteSysEx(unsafe.Pointer(s.pmStream), C.PmTimestamp(when), msgUcstr))
 }
 
 // Filters incoming stream based on channel.
@@ -160,12 +158,17 @@ func (s *Stream) Read(max int) (events []Event, err error) {
 	buffer := make([]C.PmEvent, max)
 	numEvents := C.Pm_Read(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(max))
 	events = make([]Event, numEvents)
+
 	for i := 0; i < int(numEvents); i++ {
+		buf := new(bytes.Buffer)
+		err := binary.Write(buf, binary.LittleEndian, buffer[i].message)
+		if err != nil {
+			return nil, err
+		}
+
 		events[i] = Event{
 			Timestamp: Timestamp(buffer[i].timestamp),
-			Status:    int64(buffer[i].message) & 0xFF,
-			Data1:     (int64(buffer[i].message) >> 8) & 0xFF,
-			Data2:     (int64(buffer[i].message) >> 16) & 0xFF,
+			Message:   buf.Bytes(),
 		}
 	}
 	return
@@ -212,6 +215,18 @@ func (s *Stream) Listen() <-chan Event {
 		}
 	}(s, ch)
 	return ch
+}
+
+func (e Event) Status() byte {
+	return e.Message[0]
+}
+
+func (e Event) Data1() byte {
+	return e.Message[1]
+}
+
+func (e Event) Data2() byte {
+	return e.Message[2]
 }
 
 // TODO: add bindings for Pm_SetFilter and Pm_Poll
