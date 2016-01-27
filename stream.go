@@ -132,10 +132,7 @@ func (s *Stream) WriteSysExBytes(when Timestamp, msg []byte) error {
 // the output stream. The string must only consist of hex digits (0-9A-F) and optional spaces. This
 // function is case-insenstive.
 func (s *Stream) WriteSysEx(when Timestamp, msg string) error {
-	msgCstr := C.CString(msg)
-	defer C.free(unsafe.Pointer(msgCstr))
-	msgUcstr := (*C.uchar)(unsafe.Pointer(msgCstr))
-	return convertToError(C.Pm_WriteSysEx(unsafe.Pointer(s.pmStream), C.PmTimestamp(when), msgUcstr))
+	return convertToError(C.Pm_WriteSysEx(unsafe.Pointer(s.pmStream), C.PmTimestamp(when), nil))
 }
 
 // Filters incoming stream based on channel.
