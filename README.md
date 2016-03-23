@@ -37,7 +37,7 @@ portmidi.GetDefaultOutputDeviceId() // returns the ID of the system default outp
 ~~~ go
 out, err := portmidi.NewOutputStream(deviceId, 1024, 0)
 
-// note on events to play C# minor chord
+// note on events to play C major chord
 out.WriteShort(0x90, 60, 100)
 out.WriteShort(0x90, 64, 100)
 out.WriteShort(0x90, 67, 100)
