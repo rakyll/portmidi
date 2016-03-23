@@ -26,7 +26,7 @@ import (
 )
 
 // DeviceId is a MIDI device ID.
-type DeviceId int
+type DeviceID int
 
 // DeviceInfo provides info about a MIDI device.
 type DeviceInfo struct {
