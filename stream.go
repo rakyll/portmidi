@@ -159,6 +159,9 @@ func (s *Stream) Read(max int) (events []Event, err error) {
 	}
 	buffer := make([]C.PmEvent, max)
 	numEvents := C.Pm_Read(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(max))
+	if numEvents < 0 {
+		return nil, convertToError(C.PmError(numEvents))
+	}
 	events = make([]Event, numEvents)
 	for i := 0; i < int(numEvents); i++ {
 		events[i] = Event{
@@ -181,6 +184,9 @@ func (s *Stream) ReadSysExBytes(max int) ([]byte, error) {
 	}
 	buffer := make([]C.PmEvent, max)
 	numEvents := C.Pm_Read(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(max))
+	if numEvents < 0 {
+		return nil, convertToError(C.PmError(numEvents))
+	}
 	msg := make([]byte, 4*numEvents)
 	for i := 0; i < int(numEvents); i++ {
 		msg[4*i+0] = byte(buffer[i].message & 0xFF)
