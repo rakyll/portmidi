@@ -25,7 +25,7 @@ import (
 	"errors"
 )
 
-// DeviceId is a MIDI device ID.
+// DeviceID is a MIDI device ID.
 type DeviceID int
 
 // DeviceInfo provides info about a MIDI device.
