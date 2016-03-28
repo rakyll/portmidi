@@ -25,35 +25,10 @@ import (
 	"errors"
 )
 
-var (
-	ErrUnknown            = errors.New("portmidi: unknown error")
-	ErrNoData             = errors.New("portmidi: no data")
-	ErrHost               = errors.New("portmidi: host error")
-	ErrInvalidDeviceId    = errors.New("portmidi: invalid device id")
-	ErrInsufficientMemory = errors.New("portmidi: insufficient memory")
-	ErrBufferTooSmall     = errors.New("portmidi: buffer too small")
-	ErrBufferOverflow     = errors.New("portmidi: buffer overflow")
-	ErrBadPtr             = errors.New("portmidi: bad ptr")
-	ErrBadData            = errors.New("portmidi: bad data")
-	ErrInternalError      = errors.New("portmidi: internal error")
-	ErrBufferMaxSize      = errors.New("portmidi: buffer max size")
-)
+// DeviceID is a MIDI device ID.
+type DeviceID int
 
-var errorMap map[int]error = map[int]error{
-	0:      nil,
-	-10000: ErrHost,
-	1:      ErrInvalidDeviceId,
-	2:      ErrInsufficientMemory,
-	3:      ErrBufferTooSmall,
-	4:      ErrBufferOverflow,
-	5:      ErrBadPtr,
-	6:      ErrBadData,
-	7:      ErrInternalError,
-	8:      ErrBufferMaxSize,
-}
-
-type DeviceId int
-
+// DeviceInfo provides info about a MIDI device.
 type DeviceInfo struct {
 	Interface         string
 	Name              string
@@ -111,10 +86,7 @@ func Time() Timestamp {
 	return Timestamp(C.Pt_Time())
 }
 
+// convertToError converts a portmidi error code to a Go error.
 func convertToError(code C.PmError) error {
-	err, ok := errorMap[int(code)]
-	if !ok && code != 0 {
-		return ErrUnknown
-	}
-	return err
+	return errors.New(C.GoString(C.Pm_GetErrorText(code)))
 }
