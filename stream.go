@@ -67,7 +67,7 @@ func NewInputStream(deviceId DeviceID, bufferSize int64) (stream *Stream, err er
 	if errCode != 0 {
 		return nil, convertToError(errCode)
 	}
-	if info := GetDeviceInfo(deviceId); !info.IsInputAvailable {
+	if info := Info(deviceId); !info.IsInputAvailable {
 		return nil, ErrInputUnavailable
 	}
 	return &Stream{deviceId: deviceId, pmStream: str}, nil
@@ -82,7 +82,7 @@ func NewOutputStream(deviceId DeviceID, bufferSize int64, latency int64) (stream
 	if errCode != 0 {
 		return nil, convertToError(errCode)
 	}
-	if info := GetDeviceInfo(deviceId); !info.IsOutputAvailable {
+	if info := Info(deviceId); !info.IsOutputAvailable {
 		return nil, ErrOutputUnavailable
 	}
 	return &Stream{deviceId: deviceId, pmStream: str}, nil

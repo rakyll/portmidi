@@ -54,23 +54,23 @@ func Terminate() error {
 	return convertToError(C.Pm_Terminate())
 }
 
-// Returns the default input device's ID.
-func GetDefaultInputDeviceID() DeviceID {
+// DefaultInputDeviceID returns the default input device's ID.
+func DefaultInputDeviceID() DeviceID {
 	return DeviceID(C.Pm_GetDefaultInputDeviceID())
 }
 
-// Returns the default output device's ID.
-func GetDefaultOutputDeviceID() DeviceID {
+// DefaultOutputDeviceID returns the default output device's ID.
+func DefaultOutputDeviceID() DeviceID {
 	return DeviceID(C.Pm_GetDefaultOutputDeviceID())
 }
 
-// Returns the number of MIDI devices.
+// CountDevices returns the number of MIDI devices.
 func CountDevices() int {
 	return int(C.Pm_CountDevices())
 }
 
-// Returns the device info for the device indentified with deviceId.
-func GetDeviceInfo(deviceId DeviceID) *DeviceInfo {
+// Info returns the device info for the device indentified with deviceId.
+func Info(deviceId DeviceID) *DeviceInfo {
 	info := C.Pm_GetDeviceInfo(C.PmDeviceID(deviceId))
 	return &DeviceInfo{
 		Interface:         C.GoString(info.interf),
