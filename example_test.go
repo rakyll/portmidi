@@ -8,7 +8,7 @@ import (
 )
 
 func ExampleWriteSysEx() {
-	out, err := portmidi.NewOutputStream(portmidi.GetDefaultOutputDeviceID(), 1024, 0)
+	out, err := portmidi.NewOutputStream(portmidi.DefaultOutputDeviceID(), 1024, 0)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -19,7 +19,7 @@ func ExampleWriteSysEx() {
 }
 
 func ExampleWriteSysExBytes() {
-	out, err := portmidi.NewOutputStream(portmidi.GetDefaultOutputDeviceID(), 1024, 0)
+	out, err := portmidi.NewOutputStream(portmidi.DefaultOutputDeviceID(), 1024, 0)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -30,7 +30,7 @@ func ExampleWriteSysExBytes() {
 }
 
 func ExampleReadSysExBytes() {
-	in, err := portmidi.NewInputStream(portmidi.GetDefaultInputDeviceID(), 1024)
+	in, err := portmidi.NewInputStream(portmidi.DefaultInputDeviceID(), 1024)
 	if err != nil {
 		log.Fatal(err)
 	}
