@@ -54,12 +54,12 @@ type Event struct {
 
 // Stream represents a portmidi stream.
 type Stream struct {
-	deviceId DeviceId
+	deviceId DeviceID
 	pmStream *C.PmStream
 }
 
 // Initializes a new input stream.
-func NewInputStream(deviceId DeviceId, bufferSize int64) (stream *Stream, err error) {
+func NewInputStream(deviceId DeviceID, bufferSize int64) (stream *Stream, err error) {
 	var str *C.PmStream
 	errCode := C.Pm_OpenInput(
 		(*unsafe.Pointer)(unsafe.Pointer(&str)),
@@ -67,14 +67,14 @@ func NewInputStream(deviceId DeviceId, bufferSize int64) (stream *Stream, err er
 	if errCode != 0 {
 		return nil, convertToError(errCode)
 	}
-	if info := GetDeviceInfo(deviceId); !info.IsInputAvailable {
+	if info := Info(deviceId); !info.IsInputAvailable {
 		return nil, ErrInputUnavailable
 	}
 	return &Stream{deviceId: deviceId, pmStream: str}, nil
 }
 
 // Initializes a new output stream.
-func NewOutputStream(deviceId DeviceId, bufferSize int64, latency int64) (stream *Stream, err error) {
+func NewOutputStream(deviceId DeviceID, bufferSize int64, latency int64) (stream *Stream, err error) {
 	var str *C.PmStream
 	errCode := C.Pm_OpenOutput(
 		(*unsafe.Pointer)(unsafe.Pointer(&str)),
@@ -82,7 +82,7 @@ func NewOutputStream(deviceId DeviceId, bufferSize int64, latency int64) (stream
 	if errCode != 0 {
 		return nil, convertToError(errCode)
 	}
-	if info := GetDeviceInfo(deviceId); !info.IsOutputAvailable {
+	if info := Info(deviceId); !info.IsOutputAvailable {
 		return nil, ErrOutputUnavailable
 	}
 	return &Stream{deviceId: deviceId, pmStream: str}, nil
