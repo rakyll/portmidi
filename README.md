@@ -28,8 +28,8 @@ portmidi.Initialize()
 ~~~ go
 portmidi.CountDevices() // returns the number of MIDI devices
 portmidi.GetDeviceInfo(deviceId) // returns info about a MIDI device
-portmidi.GetDefaultInputDeviceId() // returns the ID of the system default input
-portmidi.GetDefaultOutputDeviceId() // returns the ID of the system default output
+portmidi.GetDefaultInputDeviceID() // returns the ID of the system default input
+portmidi.GetDefaultOutputDeviceID() // returns the ID of the system default output
 ~~~
 
 ### Write to a MIDI Device
