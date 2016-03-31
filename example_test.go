@@ -7,7 +7,7 @@ import (
 	"github.com/rakyll/portmidi"
 )
 
-func ExampleWriteSysEx() {
+func ExampleStream_WriteSysEx() {
 	out, err := portmidi.NewOutputStream(portmidi.DefaultOutputDeviceID(), 1024, 0)
 	if err != nil {
 		log.Fatal(err)
@@ -18,7 +18,7 @@ func ExampleWriteSysEx() {
 	}
 }
 
-func ExampleWriteSysExBytes() {
+func ExampleStream_WriteSysExBytes() {
 	out, err := portmidi.NewOutputStream(portmidi.DefaultOutputDeviceID(), 1024, 0)
 	if err != nil {
 		log.Fatal(err)
@@ -29,7 +29,7 @@ func ExampleWriteSysExBytes() {
 	}
 }
 
-func ExampleReadSysExBytes() {
+func ExampleStream_ReadSysExBytes() {
 	in, err := portmidi.NewInputStream(portmidi.DefaultInputDeviceID(), 1024)
 	if err != nil {
 		log.Fatal(err)
