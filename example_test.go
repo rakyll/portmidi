@@ -44,3 +44,21 @@ func ExampleReadSysExBytes() {
 		fmt.Printf("SysEx message byte %d = %02x\n", i, b)
 	}
 }
+
+func ExampleStream_Poll() {
+	in, err := portmidi.NewInputStream(portmidi.DefaultInputDeviceID(), 1024)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	result, err := in.Poll()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if result {
+		fmt.Println("New messages in the queue!")
+	} else {
+		fmt.Println("No new messages in the queue :(")
+	}
+}

@@ -228,4 +228,13 @@ func (s *Stream) Listen() <-chan Event {
 	return ch
 }
 
-// TODO: add bindings for Pm_SetFilter and Pm_Poll
+// Poll reports whether there is input available in the stream.
+func (s *Stream) Poll() (bool, error) {
+	poll := C.Pm_Poll(unsafe.Pointer(s.pmStream))
+	if poll < 0 {
+		return false, convertToError(C.PmError(poll))
+	}
+	return poll > 0, nil
+}
+
+// TODO: add bindings for Pm_SetFilter
