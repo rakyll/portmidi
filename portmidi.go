@@ -88,5 +88,8 @@ func Time() Timestamp {
 
 // convertToError converts a portmidi error code to a Go error.
 func convertToError(code C.PmError) error {
+	if code >= 0 {
+		return nil
+	}
 	return errors.New(C.GoString(C.Pm_GetErrorText(code)))
 }
