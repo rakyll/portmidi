@@ -27,7 +27,7 @@ portmidi.Initialize()
 
 ~~~ go
 portmidi.CountDevices() // returns the number of MIDI devices
-portmidi.Info(deviceId) // returns info about a MIDI device
+portmidi.Info(deviceID) // returns info about a MIDI device
 portmidi.DefaultInputDeviceID() // returns the ID of the system default input
 portmidi.DefaultOutputDeviceID() // returns the ID of the system default output
 ~~~
@@ -35,7 +35,10 @@ portmidi.DefaultOutputDeviceID() // returns the ID of the system default output
 ### Write to a MIDI Device
 
 ~~~ go
-out, err := portmidi.NewOutputStream(deviceId, 1024, 0)
+out, err := portmidi.NewOutputStream(deviceID, 1024, 0)
+if err != nil {
+    log.Fatal(err)
+}
 
 // note on events to play C major chord
 out.WriteShort(0x90, 60, 100)
@@ -55,8 +58,16 @@ out.Close()
 
 ### Read from a MIDI Device
 ~~~ go
-in, err := portmidi.NewInputStream(deviceId, 1024)
+in, err := portmidi.NewInputStream(deviceID, 1024)
+if err != nil {
+    log.Fatal(err)
+}
+defer in.Close()
+
 events, err := in.Read(1024)
+if err != nil {
+    log.Fatal(err)
+}
 
 // alternatively you can filter the input to listen
 // only a particular set of channels
@@ -66,8 +77,6 @@ in.Read(1024) // will retrieve events from channel 1 and 2
 // or alternatively listen events
 ch := in.Listen()
 event := <-ch
-
-in.Close()
 ~~~
 
 ### Cleanup
