@@ -42,6 +42,8 @@ type Timestamp int64
 
 // Initialize initializes the portmidi. Needs to be called before
 // making any other call from the portmidi package.
+// Once portmidi package is no longer required, Terminate should be
+// called to free the underlying resources.
 func Initialize() error {
 	if code := C.Pm_Initialize(); code != 0 {
 		return convertToError(code)
