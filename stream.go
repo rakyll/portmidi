@@ -16,6 +16,7 @@
 package portmidi
 
 // #cgo LDFLAGS: -lportmidi
+//
 // #include <stdlib.h>
 // #include <portmidi.h>
 // #include <porttime.h>
@@ -54,41 +55,41 @@ type Event struct {
 
 // Stream represents a portmidi stream.
 type Stream struct {
-	deviceId DeviceID
+	deviceID DeviceID
 	pmStream *C.PmStream
 }
 
-// Initializes a new input stream.
-func NewInputStream(deviceId DeviceID, bufferSize int64) (stream *Stream, err error) {
+// NewInputStream initializes a new input stream.
+func NewInputStream(id DeviceID, bufferSize int64) (stream *Stream, err error) {
 	var str *C.PmStream
 	errCode := C.Pm_OpenInput(
 		(*unsafe.Pointer)(unsafe.Pointer(&str)),
-		C.PmDeviceID(deviceId), nil, C.int32_t(bufferSize), nil, nil)
+		C.PmDeviceID(id), nil, C.int32_t(bufferSize), nil, nil)
 	if errCode != 0 {
 		return nil, convertToError(errCode)
 	}
-	if info := Info(deviceId); !info.IsInputAvailable {
+	if info := Info(id); !info.IsInputAvailable {
 		return nil, ErrInputUnavailable
 	}
-	return &Stream{deviceId: deviceId, pmStream: str}, nil
+	return &Stream{deviceID: id, pmStream: str}, nil
 }
 
-// Initializes a new output stream.
-func NewOutputStream(deviceId DeviceID, bufferSize int64, latency int64) (stream *Stream, err error) {
+// NewOutputStream initializes a new output stream.
+func NewOutputStream(id DeviceID, bufferSize int64, latency int64) (stream *Stream, err error) {
 	var str *C.PmStream
 	errCode := C.Pm_OpenOutput(
 		(*unsafe.Pointer)(unsafe.Pointer(&str)),
-		C.PmDeviceID(deviceId), nil, C.int32_t(bufferSize), nil, nil, C.int32_t(latency))
+		C.PmDeviceID(id), nil, C.int32_t(bufferSize), nil, nil, C.int32_t(latency))
 	if errCode != 0 {
 		return nil, convertToError(errCode)
 	}
-	if info := Info(deviceId); !info.IsOutputAvailable {
+	if info := Info(id); !info.IsOutputAvailable {
 		return nil, ErrOutputUnavailable
 	}
-	return &Stream{deviceId: deviceId, pmStream: str}, nil
+	return &Stream{deviceID: id, pmStream: str}, nil
 }
 
-// Closes the MIDI stream.
+// Close closes the MIDI stream.
 func (s *Stream) Close() error {
 	if s.pmStream == nil {
 		return nil
@@ -96,7 +97,7 @@ func (s *Stream) Close() error {
 	return convertToError(C.Pm_Close(unsafe.Pointer(s.pmStream)))
 }
 
-// Aborts the MIDI stream.
+// Abort aborts the MIDI stream.
 func (s *Stream) Abort() error {
 	if s.pmStream == nil {
 		return nil
@@ -104,13 +105,13 @@ func (s *Stream) Abort() error {
 	return convertToError(C.Pm_Abort(unsafe.Pointer(s.pmStream)))
 }
 
-// Writes a buffer of MIDI events to the output stream.
+// Write writes a buffer of MIDI events to the output stream.
 func (s *Stream) Write(events []Event) error {
 	size := len(events)
 	if size > maxEventBufferSize {
 		return ErrMaxBuffer
 	}
-	var buffer []C.PmEvent = make([]C.PmEvent, size)
+	buffer := make([]C.PmEvent, size)
 	for i, evt := range events {
 		var event C.PmEvent
 		event.timestamp = C.PmTimestamp(evt.Timestamp)
@@ -120,7 +121,7 @@ func (s *Stream) Write(events []Event) error {
 	return convertToError(C.Pm_Write(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(size)))
 }
 
-// Writes a MIDI event of three bytes immediately to the output stream.
+// WriteShort writes a MIDI event of three bytes immediately to the output stream.
 func (s *Stream) WriteShort(status int64, data1 int64, data2 int64) error {
 	evt := Event{
 		Timestamp: Timestamp(C.Pt_Time()),
@@ -148,7 +149,7 @@ func (s *Stream) WriteSysEx(when Timestamp, msg string) error {
 	return s.WriteSysExBytes(when, buf)
 }
 
-// Filters incoming stream based on channel.
+// SetChannelMask filters incoming stream based on channel.
 // In order to filter from more than a single channel, or multiple channels.
 // s.SetChannelMask(Channel(1) | Channel(10)) will both filter input
 // from channel 1 and 10.
