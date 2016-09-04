@@ -73,9 +73,9 @@ func CountDevices() int {
 	return int(C.Pm_CountDevices())
 }
 
-// Info returns the device info for the device indentified with deviceId.
+// Info returns the device info for the device indentified with deviceID.
 func Info(deviceID DeviceID) *DeviceInfo {
-	info := C.Pm_GetDeviceInfo(C.PmDeviceID(deviceId))
+	info := C.Pm_GetDeviceInfo(C.PmDeviceID(deviceID))
 	return &DeviceInfo{
 		Interface:         C.GoString(info.interf),
 		Name:              C.GoString(info.name),
