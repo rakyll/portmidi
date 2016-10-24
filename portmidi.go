@@ -15,7 +15,8 @@
 // Package portmidi provides PortMidi bindings.
 package portmidi
 
-// #cgo LDFLAGS: -lportmidi
+// #cgo CFLAGS:  -I/usr/local/include
+// #cgo LDFLAGS: -lportmidi -L/usr/local/lib
 //
 // #include <stdlib.h>
 // #include <portmidi.h>
