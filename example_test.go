@@ -3,9 +3,32 @@ package portmidi_test
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/rakyll/portmidi"
 )
+
+func ExampleStream_WriteShort() {
+	out, err := portmidi.NewOutputStream(portmidi.DefaultOutputDeviceID(), 1024, 0)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Send "note on" events to play C major chord.
+	out.WriteShort(0x90, 60, 100)
+	out.WriteShort(0x90, 64, 100)
+	out.WriteShort(0x90, 67, 100)
+
+	// Notes will be sustained for 2 seconds.
+	time.Sleep(2 * time.Second)
+
+	// Note off events.
+	out.WriteShort(0x80, 60, 100)
+	out.WriteShort(0x80, 64, 100)
+	out.WriteShort(0x80, 67, 100)
+
+	out.Close()
+}
 
 func ExampleStream_WriteSysEx() {
 	out, err := portmidi.NewOutputStream(portmidi.DefaultOutputDeviceID(), 1024, 0)
