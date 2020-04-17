@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/rakyll/portmidi"
+	"github.com/jmacd/portmidi"
 )
 
 func ExampleStream_WriteShort() {

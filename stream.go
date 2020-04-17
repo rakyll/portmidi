@@ -22,6 +22,7 @@ package portmidi
 import "C"
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 	"strings"
@@ -50,12 +51,15 @@ type Event struct {
 	Status    int64
 	Data1     int64
 	Data2     int64
+	SysEx     []byte
 }
 
 // Stream represents a portmidi stream.
 type Stream struct {
 	deviceID DeviceID
 	pmStream *C.PmStream
+
+	sysexBuffer [1024]byte
 }
 
 // NewInputStream initializes a new input stream.
@@ -170,40 +174,67 @@ func (s *Stream) Read(max int) (events []Event, err error) {
 	if numEvents < 0 {
 		return nil, convertToError(C.PmError(numEvents))
 	}
-	events = make([]Event, numEvents)
+	events = make([]Event, 0, numEvents)
 	for i := 0; i < int(numEvents); i++ {
-		events[i] = Event{
+		event := Event{
 			Timestamp: Timestamp(buffer[i].timestamp),
 			Status:    int64(buffer[i].message) & 0xFF,
 			Data1:     (int64(buffer[i].message) >> 8) & 0xFF,
 			Data2:     (int64(buffer[i].message) >> 16) & 0xFF,
 		}
+
+		if event.Status&0xf0 == 0xf0 {
+			// Sysex message starts with 0xf0, ends with 0xf7
+			read := 0
+			for {
+				copied := read * 4
+
+				s.sysexBuffer[copied+0] = byte(buffer[i+read].message & 0xFF)
+				s.sysexBuffer[copied+1] = byte((buffer[i+read].message >> 8) & 0xFF)
+				s.sysexBuffer[copied+2] = byte((buffer[i+read].message >> 16) & 0xFF)
+				s.sysexBuffer[copied+3] = byte((buffer[i+read].message >> 24) & 0xFF)
+
+				if pos := bytes.IndexByte(s.sysexBuffer[copied:copied+4], 0xF7); pos >= 0 {
+					size := copied + pos + 1
+					event.SysEx = make([]byte, size)
+					event.Data1 = 0
+					event.Data2 = 0
+					copy(event.SysEx, s.sysexBuffer[:size])
+					break
+				}
+
+				read++
+			}
+			i += read
+		}
+
+		events = append(events, event)
 	}
 	return
 }
 
 // ReadSysExBytes reads 4*max sysex bytes from the input stream.
-func (s *Stream) ReadSysExBytes(max int) ([]byte, error) {
-	if max > maxEventBufferSize {
-		return nil, ErrMaxBuffer
-	}
-	if max < minEventBufferSize {
-		return nil, ErrMinBuffer
-	}
-	buffer := make([]C.PmEvent, max)
-	numEvents := C.Pm_Read(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(max))
-	if numEvents < 0 {
-		return nil, convertToError(C.PmError(numEvents))
-	}
-	msg := make([]byte, 4*numEvents)
-	for i := 0; i < int(numEvents); i++ {
-		msg[4*i+0] = byte(buffer[i].message & 0xFF)
-		msg[4*i+1] = byte((buffer[i].message >> 8) & 0xFF)
-		msg[4*i+2] = byte((buffer[i].message >> 16) & 0xFF)
-		msg[4*i+3] = byte((buffer[i].message >> 24) & 0xFF)
-	}
-	return msg, nil
-}
+// func (s *Stream) ReadSysExBytes(max int) ([]byte, error) {
+// 	if max > maxEventBufferSize {
+// 		return nil, ErrMaxBuffer
+// 	}
+// 	if max < minEventBufferSize {
+// 		return nil, ErrMinBuffer
+// 	}
+// 	buffer := make([]C.PmEvent, max)
+// 	numEvents := C.Pm_Read(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(max))
+// 	if numEvents < 0 {
+// 		return nil, convertToError(C.PmError(numEvents))
+// 	}
+// 	msg := make([]byte, 4*numEvents)
+// 	for i := 0; i < int(numEvents); i++ {
+// 		msg[4*i+0] = byte(buffer[i].message & 0xFF)
+// 		msg[4*i+1] = byte((buffer[i].message >> 8) & 0xFF)
+// 		msg[4*i+2] = byte((buffer[i].message >> 16) & 0xFF)
+// 		msg[4*i+3] = byte((buffer[i].message >> 24) & 0xFF)
+// 	}
+// 	return msg, nil
+// }
 
 // Listen input stream for MIDI events.
 func (s *Stream) Listen() <-chan Event {
