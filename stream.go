@@ -59,7 +59,7 @@ type Stream struct {
 	deviceID DeviceID
 	pmStream *C.PmStream
 
-	sysexBuffer [1024]byte
+	sysexBuffer [maxEventBufferSize]byte
 }
 
 // NewInputStream initializes a new input stream.
@@ -214,27 +214,17 @@ func (s *Stream) Read(max int) (events []Event, err error) {
 }
 
 // ReadSysExBytes reads 4*max sysex bytes from the input stream.
-// func (s *Stream) ReadSysExBytes(max int) ([]byte, error) {
-// 	if max > maxEventBufferSize {
-// 		return nil, ErrMaxBuffer
-// 	}
-// 	if max < minEventBufferSize {
-// 		return nil, ErrMinBuffer
-// 	}
-// 	buffer := make([]C.PmEvent, max)
-// 	numEvents := C.Pm_Read(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(max))
-// 	if numEvents < 0 {
-// 		return nil, convertToError(C.PmError(numEvents))
-// 	}
-// 	msg := make([]byte, 4*numEvents)
-// 	for i := 0; i < int(numEvents); i++ {
-// 		msg[4*i+0] = byte(buffer[i].message & 0xFF)
-// 		msg[4*i+1] = byte((buffer[i].message >> 8) & 0xFF)
-// 		msg[4*i+2] = byte((buffer[i].message >> 16) & 0xFF)
-// 		msg[4*i+3] = byte((buffer[i].message >> 24) & 0xFF)
-// 	}
-// 	return msg, nil
-// }
+//
+// Deprecated. Using this API may cause a loss of buffered data.  It
+// is preferable to use Read() and inspect the Event.SysEx field to
+// detect SysEx messages.
+func (s *Stream) ReadSysExBytes(max int) ([]byte, error) {
+	evt, err := s.Read(max)
+	if err != nil {
+		return nil, err
+	}
+	return evt[0].SysEx, nil
+}
 
 // Listen input stream for MIDI events.
 func (s *Stream) Listen() <-chan Event {
@@ -244,7 +234,7 @@ func (s *Stream) Listen() <-chan Event {
 			// sleep for a while before the new polling tick,
 			// otherwise operation is too intensive and blocking
 			time.Sleep(10 * time.Millisecond)
-			events, err := s.Read(1024)
+			events, err := s.Read(maxEventBufferSize)
 			// Note: It's not very reasonable to push sliced data into
 			// a channel, several perf penalities there are.
 			// This function is added as a handy utility.
