@@ -40,6 +40,7 @@ var (
 	ErrMinBuffer         = errors.New("portmidi: min event buffer size is 1")
 	ErrInputUnavailable  = errors.New("portmidi: input is unavailable")
 	ErrOutputUnavailable = errors.New("portmidi: output is unavailable")
+	ErrSysExOverflow     = errors.New("portmidi: SysEx message overflowed")
 )
 
 // Channel represent a MIDI channel. It should be between 1-16.
@@ -170,12 +171,12 @@ func (s *Stream) Read(max int) (events []Event, err error) {
 		return nil, ErrMinBuffer
 	}
 	buffer := make([]C.PmEvent, max)
-	numEvents := C.Pm_Read(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(max))
+	numEvents := int(C.Pm_Read(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(max)))
 	if numEvents < 0 {
 		return nil, convertToError(C.PmError(numEvents))
 	}
 	events = make([]Event, 0, numEvents)
-	for i := 0; i < int(numEvents); i++ {
+	for i := 0; i < numEvents; i++ {
 		event := Event{
 			Timestamp: Timestamp(buffer[i].timestamp),
 			Status:    int64(buffer[i].message) & 0xFF,
@@ -183,10 +184,10 @@ func (s *Stream) Read(max int) (events []Event, err error) {
 			Data2:     (int64(buffer[i].message) >> 16) & 0xFF,
 		}
 
-		if event.Status&0xf0 == 0xf0 {
-			// Sysex message starts with 0xf0, ends with 0xf7
+		if event.Status&0xF0 == 0xF0 {
+			// Sysex message starts with 0xF0, ends with 0xF7
 			read := 0
-			for {
+			for i+read < numEvents {
 				copied := read * 4
 
 				s.sysexBuffer[copied+0] = byte(buffer[i+read].message & 0xFF)
@@ -204,6 +205,17 @@ func (s *Stream) Read(max int) (events []Event, err error) {
 				}
 
 				read++
+			}
+			if event.SysEx == nil {
+				// We didn't find a 0xF7, meaning the
+				// event buffer was not large enough.
+				// Comments on Pm_Read() indicate that
+				// when a large SysEx message is not
+				// fully received, the reader will
+				// flush the buffer to avoid the next
+				// read starting in the middle of the
+				// unread SysEx message bytes.
+				return nil, ErrSysExOverflow
 			}
 			i += read
 		}
