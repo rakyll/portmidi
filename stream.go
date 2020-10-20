@@ -22,6 +22,7 @@ package portmidi
 import "C"
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 	"strings"
@@ -39,6 +40,7 @@ var (
 	ErrMinBuffer         = errors.New("portmidi: min event buffer size is 1")
 	ErrInputUnavailable  = errors.New("portmidi: input is unavailable")
 	ErrOutputUnavailable = errors.New("portmidi: output is unavailable")
+	ErrSysExOverflow     = errors.New("portmidi: SysEx message overflowed")
 )
 
 // Channel represent a MIDI channel. It should be between 1-16.
@@ -50,12 +52,15 @@ type Event struct {
 	Status    int64
 	Data1     int64
 	Data2     int64
+	SysEx     []byte
 }
 
 // Stream represents a portmidi stream.
 type Stream struct {
 	deviceID DeviceID
 	pmStream *C.PmStream
+
+	sysexBuffer [maxEventBufferSize]byte
 }
 
 // NewInputStream initializes a new input stream.
@@ -166,43 +171,71 @@ func (s *Stream) Read(max int) (events []Event, err error) {
 		return nil, ErrMinBuffer
 	}
 	buffer := make([]C.PmEvent, max)
-	numEvents := C.Pm_Read(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(max))
+	numEvents := int(C.Pm_Read(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(max)))
 	if numEvents < 0 {
 		return nil, convertToError(C.PmError(numEvents))
 	}
-	events = make([]Event, numEvents)
-	for i := 0; i < int(numEvents); i++ {
-		events[i] = Event{
+	events = make([]Event, 0, numEvents)
+	for i := 0; i < numEvents; i++ {
+		event := Event{
 			Timestamp: Timestamp(buffer[i].timestamp),
 			Status:    int64(buffer[i].message) & 0xFF,
 			Data1:     (int64(buffer[i].message) >> 8) & 0xFF,
 			Data2:     (int64(buffer[i].message) >> 16) & 0xFF,
 		}
+
+		if event.Status&0xF0 == 0xF0 {
+			// Sysex message starts with 0xF0, ends with 0xF7
+			read := 0
+			for i+read < numEvents {
+				copied := read * 4
+
+				s.sysexBuffer[copied+0] = byte(buffer[i+read].message & 0xFF)
+				s.sysexBuffer[copied+1] = byte((buffer[i+read].message >> 8) & 0xFF)
+				s.sysexBuffer[copied+2] = byte((buffer[i+read].message >> 16) & 0xFF)
+				s.sysexBuffer[copied+3] = byte((buffer[i+read].message >> 24) & 0xFF)
+
+				if pos := bytes.IndexByte(s.sysexBuffer[copied:copied+4], 0xF7); pos >= 0 {
+					size := copied + pos + 1
+					event.SysEx = make([]byte, size)
+					event.Data1 = 0
+					event.Data2 = 0
+					copy(event.SysEx, s.sysexBuffer[:size])
+					break
+				}
+
+				read++
+			}
+			if event.SysEx == nil {
+				// We didn't find a 0xF7, meaning the
+				// event buffer was not large enough.
+				// Comments on Pm_Read() indicate that
+				// when a large SysEx message is not
+				// fully received, the reader will
+				// flush the buffer to avoid the next
+				// read starting in the middle of the
+				// unread SysEx message bytes.
+				return nil, ErrSysExOverflow
+			}
+			i += read
+		}
+
+		events = append(events, event)
 	}
 	return
 }
 
 // ReadSysExBytes reads 4*max sysex bytes from the input stream.
+//
+// Deprecated. Using this API may cause a loss of buffered data.  It
+// is preferable to use Read() and inspect the Event.SysEx field to
+// detect SysEx messages.
 func (s *Stream) ReadSysExBytes(max int) ([]byte, error) {
-	if max > maxEventBufferSize {
-		return nil, ErrMaxBuffer
+	evt, err := s.Read(max)
+	if err != nil {
+		return nil, err
 	}
-	if max < minEventBufferSize {
-		return nil, ErrMinBuffer
-	}
-	buffer := make([]C.PmEvent, max)
-	numEvents := C.Pm_Read(unsafe.Pointer(s.pmStream), &buffer[0], C.int32_t(max))
-	if numEvents < 0 {
-		return nil, convertToError(C.PmError(numEvents))
-	}
-	msg := make([]byte, 4*numEvents)
-	for i := 0; i < int(numEvents); i++ {
-		msg[4*i+0] = byte(buffer[i].message & 0xFF)
-		msg[4*i+1] = byte((buffer[i].message >> 8) & 0xFF)
-		msg[4*i+2] = byte((buffer[i].message >> 16) & 0xFF)
-		msg[4*i+3] = byte((buffer[i].message >> 24) & 0xFF)
-	}
-	return msg, nil
+	return evt[0].SysEx, nil
 }
 
 // Listen input stream for MIDI events.
@@ -213,7 +246,7 @@ func (s *Stream) Listen() <-chan Event {
 			// sleep for a while before the new polling tick,
 			// otherwise operation is too intensive and blocking
 			time.Sleep(10 * time.Millisecond)
-			events, err := s.Read(1024)
+			events, err := s.Read(maxEventBufferSize)
 			// Note: It's not very reasonable to push sliced data into
 			// a channel, several perf penalities there are.
 			// This function is added as a handy utility.
